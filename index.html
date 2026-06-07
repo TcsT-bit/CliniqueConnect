@@ -10,9 +10,9 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
   body {
-    background: 
+    background:
       linear-gradient(rgba(255,255,255,0.92), rgba(255,255,255,0.92)),
-      url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="800" height="500" fill="%23de3831"/><rect y="166" width="800" height="168" fill="%23ffffff"/><rect y="222" width="800" height="56" fill="%23ffb81c"/><path d="M0 0 L320 166 L0 166 Z" fill="%230077c8"/><path d="M0 334 L320 166 L0 166 Z" fill="%230077c8"/><path d="M0 334 L320 166 L320 334 Z" fill="%23009a49"/><path d="M0 500 L320 334 L320 500 Z" fill="%23009a49"/><path d="M0 0 L320 166 L320 0 Z" fill="%23000936"/><circle cx="160" cy="250" r="60" fill="%23e03c31" stroke="%23ffffff" stroke-width="8"/></svg>')
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='500'><rect width='800' height='500' fill='%23de3831'/><rect y='166' width='800' height='168' fill='%23ffffff'/><rect y='222' width='800' height='56' fill='%23ffb81c'/><path d='M0 0 L320 166 L0 166 Z' fill='%230077c8'/><path d='M0 334 L320 166 L0 166 Z' fill='%230077c8'/><path d='M0 334 L320 166 L320 334 Z' fill='%23009a49'/><path d='M0 500 L320 334 L320 500 Z' fill='%23009a49'/><path d='M0 0 L320 166 L320 0 Z' fill='%23000936'/><circle cx='160' cy='250' r='60' fill='%23e03c31' stroke='%23ffffff' stroke-width='8'/></svg>")
       center/cover no-repeat fixed;
   }
 </style>
@@ -23,119 +23,15 @@
 <script type="text/babel">
 const { useState, useEffect } = React;
 
-const hashID = async (id) => {
-  const msgBuffer = new TextEncoder().encode(id);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 12);
-};
-
 const DEMO_CLINICS = [
   {id: 1, name: "Chris Hani Baragwanath Hospital", province: "Gauteng", city: "Soweto", queue: 45, doctors: 8, medsInStock: true},
   {id: 2, name: "Charlotte Maxeke Hospital", province: "Gauteng", city: "Johannesburg", queue: 32, doctors: 12, medsInStock: true},
-  {id: 3, name: "Groote Schuur Hospital", province: "Western Cape", city: "Cape Town", queue: 28, doctors: 15, medsInStock: true},
-  {id: 4, name: "King Edward VIII Hospital", province: "KZN", city: "Durban", queue: 52, doctors: 6, medsInStock: false},
-  {id: 5, name: "Steve Biko Academic Hospital", province: "Gauteng", city: "Pretoria", queue: 19, doctors: 10, medsInStock: true},
-  {id: 8, name: "Polokwane Hospital", province: "Limpopo", city: "Polokwane", queue: 41, doctors: 7, medsInStock: false},
+  {id: 3, name: "Groote Schuur Hospital", province: "Western Cape", city: "Cape Town", queue: 28, doctors: 15, medsInStock: true}
 ];
 
 function App() {
   const [view, setView] = useState('patient');
-  const [clinics, setClinics] = useState(DEMO_CLINICS);
-  const [selectedClinic, setSelectedClinic] = useState(null);
-  const [bookings, setBookings] = useState([]);
-  const [provinceFilter, setProvinceFilter] = useState('All');
-  const [user, setUser] = useState(null);
-  const [symptomResult, setSymptomResult] = useState(null);
-  const [stockLog, setStockLog] = useState([]);
-  const [staffLog, setStaffLog] = useState([]);
-  const [consentGiven, setConsentGiven] = useState(false);
-  const [mode, setMode] = useState('app');
-  const [savedRands, setSavedRands] = useState(0);
-  const [dhis2Status, setDhis2Status] = useState('Offline');
-  const [showUSSD, setShowUSSD] = useState(false);
-  const [dohTab, setDohTab] = useState('dashboard');
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
-    fetch('https://play.dhis2.org/2.40/api/organisationUnits.json?level=5&paging=false&fields=id,name')
-      .then(res => res.json())
-      .then(() => setDhis2Status('Connected'))
-      .catch(() => setDhis2Status('Offline - Using Cache'));
-    
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  const filteredClinics = provinceFilter === 'All' ? clinics : clinics.filter(c => c.province === provinceFilter);
-
-  const registerUser = async (id, phone) => {
-    if(!consentGiven){ alert('Please accept POPIA consent first'); return; }
-    const hashedID = await hashID(id);
-    setUser({hashedID, phone, fileId: 'FILE' + Math.random().toString(36).substr(2, 6).toUpperCase()});
-    alert('Digital file created! File ID: ' + user?.fileId);
-  };
-
-  const runSymptomCheck = (answers) => {
-    const score = answers.filter(a => a === 'yes').length;
-    let result = score >= 4 ? 'RED' : score >= 2 ? 'YELLOW' : 'GREEN';
-    setSymptomResult(result);
-    alert(`Symptom Check Result: ${result}\n\nDISCLAIMER: This is NOT medical advice. For emergencies call 112.`);
-  };
-
-  const bookSlot = (clinicId, delivery=false) => {
-    if(!user) { alert('Please register first'); return; }
-    const newBooking = {
-      id: Date.now(),
-      clinicId,
-      userId: user.fileId,
-      time: '10:30 AM',
-      qr: 'QR' + Math.random().toString(36).substr(2, 9).toUpperCase(),
-      status: 'Booked',
-      deliveryType: delivery ? 'Spaza Pickup' : 'Clinic Visit'
-    };
-    setBookings([...bookings, newBooking]);
-    setSavedRands(savedRands + 120);
-    alert(`${newBooking.deliveryType} booked! ${delivery?'':'Show QR: ' + newBooking.qr}`);
-  };
-
-  const updateStock = (clinicId, inStock) => {
-    setClinics(clinics.map(c => c.id === clinicId? {...c, medsInStock: inStock} : c));
-    setStockLog([...stockLog, {
-      time: new Date().toLocaleString(),
-      clinic: clinics.find(c=>c.id===clinicId).name,
-      action: inStock ? 'Stock Updated - OK' : 'Stock Updated - LOW',
-      user: 'Clinic Admin'
-    }]);
-  };
-
-  const markSeen = (clinicId) => {
-    setClinics(clinics.map(c => c.id === clinicId? {...c, queue: Math.max(0, c.queue - 1)} : c));
-  };
-
-  const exportAuditLog = () => {
-    const csv = 'Time,Clinic,Action,User\n' + stockLog.map(l => `${l.time},${l.clinic},${l.action},${l.user}`).join('\n');
-    const blob = new Blob([csv], {type: 'text/csv'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'cliniqueconnect_audit_log.csv';
-    a.click();
-  };
-
-  const businessCase = {
-    pilot: "1 clinic, 500 patients, 30 days",
-    queueReduction: "40%",
-    costPerPatient: "R2.50/month",
-    annualSavings: "R1.2M per clinic",
-    paperCost: "R25/patient"
-  };
+  const [clinics] = useState(DEMO_CLINICS);
 
   return (
     <div className="min-h-screen">
@@ -143,184 +39,27 @@ function App() {
         ⚠️ EMERGENCY? Call 112. This app is not for emergencies.
       </div>
 
-      {!isOnline && (
-        <div className="bg-yellow-500 text-black text-center py-2 text-sm font-semibold">
-          📶 Offline Mode: You can still book and view data. Syncs when online.
-        </div>
-      )}
-
       <header className="bg-blue-700 text-white p-4 shadow-lg">
-        <div className="max-w-6xl mx-auto flex justify-between items-center flex-wrap">
-          <div>
-            <h1 className="text-2xl font-bold">CliniqueConnect</h1>
-            <p className="text-xs opacity-80">AWS Cape Town | POPIA Compliant | DHIS2: {dhis2Status}</p>
-          </div>
-          <div className="flex gap-2 flex-wrap mt-2 md:mt-0">
-            <button onClick={() => setView('patient')} className={`px-3 py-2 rounded text-sm ${view==='patient'?'bg-blue-900':''}`}>Patient</button>
-            <button onClick={() => setView('clinic')} className={`px-3 py-2 rounded text-sm ${view==='clinic'?'bg-blue-900':''}`}>Clinic</button>
-            <button onClick={() => setView('doh')} className={`px-3 py-2 rounded text-sm ${view==='doh'?'bg-blue-900':''}`}>DOH Dashboard</button>
-          </div>
+        <div className="max-w-6xl mx-auto">
+          <h1 className="text-2xl font-bold">CliniqueConnect</h1>
+          <p className="text-xs opacity-80">SA Public Health Access</p>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto p-4">
-        {view === 'patient' && (
-          <div className="space-y-6">
-            <div className="bg-yellow-50 border-yellow-300 p-4 rounded-lg">
-              <p className="text-sm"><strong>Access Mode:</strong></p>
-              <div className="flex gap-2 mt-2">
-                <button onClick={()=>setMode('app')} className={`px-3 py-1 rounded ${mode==='app'?'bg-blue-600 text-white':''}`}>Smartphone App</button>
-                <button onClick={()=>setShowUSSD(true)} className={`px-3 py-1 rounded ${mode==='ussd'?'bg-blue-600 text-white':''}`}>USSD *120*123#</button>
-                <button onClick={()=>setMode('whatsapp')} className={`px-3 py-1 rounded ${mode==='whatsapp'?'bg-blue-600 text-white':''}`}>WhatsApp</button>
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="text-xl font-bold mb-4">It Works!</h2>
+          <p>If you can see this, React is mounted correctly.</p>
+          <div className="mt-4">
+            <h3 className="font-bold">Clinics:</h3>
+            {clinics.map(c => (
+              <div key={c.id} className="border p-2 mt-2 rounded">
+                {c.name} - {c.city}
               </div>
-            </div>
-
-            {!user && (
-              <div className="bg-white p-6 rounded-lg shadow">
-                <h2 className="text-xl font-bold mb-4">1. Register from Home</h2>
-                <div className="bg-blue-50 p-3 rounded mb-4">
-                  <label className="flex items-start gap-2">
-                    <input type="checkbox" checked={consentGiven} onChange={(e)=>setConsentGiven(e.target.checked)}/>
-                    <span className="text-sm">I consent to CliniqueConnect processing my data under POPIA. Data stored in South Africa.</span>
-                  </label>
-                </div>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <input id="idInput" placeholder="SA ID Number" className="p-3 border rounded"/>
-                  <input id="phoneInput" placeholder="Phone Number" className="p-3 border rounded"/>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">Note: ID is hashed. We never store raw ID numbers.</p>
-                <button onClick={() => registerUser(document.getElementById('idInput').value, document.getElementById('phoneInput').value)} className="mt-4 bg-blue-600 text-white px-6 py-2 rounded">
-                  Create Digital File
-                </button>
-              </div>
-            )}
-
-            {user && (
-              <div className="bg-green-50 p-4 rounded-lg">
-                <p className="font-semibold">Logged in as: {user.fileId}</p>
-              </div>
-            )}
-
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-xl font-bold mb-4">2. Symptom Checker</h2>
-              <p className="text-sm text-gray-600 mb-2">Answer 5 questions. Get guidance on urgency. NOT a diagnosis.</p>
-              <p className="text-xs text-red-600 mb-4">If you have chest pain or trouble breathing, call 112 now.</p>
-              <div className="space-y-2">
-                {['Difficulty breathing?', 'Chest pain?', 'High fever >38°C?', 'Severe bleeding?', 'Unconscious?'].map((q, i) => (
-                  <div key={i} className="flex justify-between items-center">
-                    <span>{q}</span>
-                    <select id={`q${i}`} className="border p-2 rounded">
-                      <option value="no">No</option>
-                      <option value="yes">Yes</option>
-                    </select>
-                  </div>
-                ))}
-              </div>
-              <button onClick={() => runSymptomCheck([0,1,2,3,4].map(i => document.getElementById(`q${i}`).value))} className="mt-4 bg-orange-600 text-white px-6 py-2 rounded">
-                Check Symptoms
-              </button>
-              {symptomResult && <div className={`mt-3 p-3 rounded font-bold ${symptomResult==='RED'?'bg-red-100 text-red-700':symptomResult==='YELLOW'?'bg-yellow-100 text-yellow-700':'bg-green-100 text-green-700'}`}>Result: {symptomResult}</div>}
-            </div>
-
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-xl font-bold mb-4">3. Find Clinic & Book</h2>
-              <select value={provinceFilter} onChange={(e) => setProvinceFilter(e.target.value)} className="w-full p-3 border rounded mb-4">
-                <option>All</option><option>Gauteng</option><option>Western Cape</option><option>KZN</option><option>Limpopo</option>
-              </select>
-              <div className="grid md:grid-cols-2 gap-4">
-                {filteredClinics.map(clinic => (
-                  <div key={clinic.id} className="border p-4 rounded-lg">
-                    <h3 className="font-bold">{clinic.name}</h3>
-                    <p className="text-sm text-gray-600">{clinic.city}, {clinic.province}</p>
-                    <div className="mt-2 space-y-1 text-sm">
-                      <p>⏱️ Queue: {clinic.queue} people</p>
-                      <p>👨‍⚕️ Staff on duty: {clinic.doctors}</p>
-                      <p className={`font-semibold ${clinic.medsInStock?'text-green-600':'text-red-600'}`}>
-                        💊 Meds: {clinic.medsInStock? 'In Stock' : 'Low/Out'}
-                      </p>
-                    </div>
-                    <div className="flex gap-2 mt-3">
-                      <button onClick={() => bookSlot(clinic.id, false)} disabled={!clinic.medsInStock} className="flex-1 bg-blue-600 text-white py-2 rounded text-sm disabled:bg-gray-400">Book Slot</button>
-                      <button onClick={() => bookSlot(clinic.id, true)} disabled={!clinic.medsInStock} className="flex-1 bg-purple-600 text-white py-2 rounded text-sm disabled:bg-gray-400">Spaza Pickup</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            ))}
           </div>
-        )}
-
-        {view === 'clinic' && (
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h2 className="text-xl font-bold mb-4">Clinic Dashboard</h2>
-            <select onChange={(e) => setSelectedClinic(clinics.find(c => c.id == e.target.value))} className="w-full p-3 border rounded mb-4">
-              <option>Select Clinic</option>
-              {clinics.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            {selectedClinic && (
-              <div>
-                <div className="grid md:grid-cols-3 gap-4 mb-4">
-                  <div className="bg-blue-50 p-4 rounded"><p className="text-sm text-gray-600">Queue</p><p className="text-2xl font-bold">{selectedClinic.queue}</p></div>
-                  <div className="bg-green-50 p-4 rounded"><p className="text-sm text-gray-600">Staff on Duty</p><p className="text-2xl font-bold">{selectedClinic.doctors}</p></div>
-                  <div className={`p-4 rounded ${selectedClinic.medsInStock?'bg-green-50':'bg-red-50'}`}><p className="text-sm text-gray-600">Meds Stock</p><p className="text-2xl font-bold">{selectedClinic.medsInStock?'OK':'LOW'}</p></div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {view === 'doh' && (
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="flex gap-2 mb-4 border-b pb-4">
-              <button onClick={()=>setDohTab('dashboard')} className={`px-4 py-2 rounded ${dohTab==='dashboard'?'bg-blue-600 text-white':''}`}>Dashboard</button>
-              <button onClick={()=>setDohTab('business')} className={`px-4 py-2 rounded ${dohTab==='business'?'bg-blue-600 text-white':''}`}>Business Case</button>
-            </div>
-
-            {dohTab === 'dashboard' && (
-              <>
-                <h2 className="text-xl font-bold mb-4">DOH National Dashboard</h2>
-                <div className="bg-green-50 border-green-300 p-4 rounded mb-4">
-                  <p className="text-sm font-semibold">ROI Tracker</p>
-                  <p className="text-2xl font-bold text-green-700">R{savedRands.toLocaleString()}</p>
-                </div>
-              </>
-            )}
-
-            {dohTab === 'business' && (
-              <div>
-                <h3 className="text-xl font-bold mb-4">Why DOH Can’t Ignore This</h3>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <h4 className="font-bold mb-2">Pilot Results</h4>
-                    <p>{businessCase.pilot}</p>
-                    <p className="text-2xl font-bold text-blue-700 mt-2">{businessCase.queueReduction} Queue Reduction</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        </div>
       </main>
-
-      <footer className="text-center p-4 text-gray-500 text-sm mt-8">
-        <p>CliniqueConnect Prototype v3.0 | POPIA Compliant | Data Residency: AWS Cape Town</p>
-        <p className="text-xs mt-1">Works offline. Syncs when online. Tested on 2G.</p>
-      </footer>
-
-      {showUSSD && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4">USSD Simulator *120*123#</h3>
-            <div className="bg-black text-green-400 p-4 rounded font-mono text-sm">
-              <p>Welcome to CliniqueConnect</p>
-              <p>1. Book Clinic Slot</p>
-              <p>2. Check Meds Stock</p>
-              <p>3. Spaza Pickup</p>
-              <p>4. Symptom Check</p>
-            </div>
-            <button onClick={()=>setShowUSSD(false)} className="mt-4 w-full bg-blue-600 text-white py-2 rounded">Close</button>
-          </div>
-        )}
     </div>
   );
 }
