@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CliniqueConnect - SA Public Health Access</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: 'Inter', sans-serif; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+// Demo data - 20 SA clinics/hospitals. Replace with DHIS2 API later
+const DEMO_CLINICS = [
+  {id: 1, name: "Chris Hani Baragwanath Hospital", province: "Gauteng", city: "Soweto", queue: 45, doctors: 8, medsInStock: true, lat: -26.2623, lng: 27.9063},
+  {id: 2, name: "Charlotte Maxeke Hospital", province: "Gauteng", city: "Johannesburg", queue: 32, doctors: 12, medsInStock: true, lat: -26.1899, lng: 28.0305},
+  {id: 3, name: "Groote Schuur Hospital", province: "Western Cape", city: "Cape Town", queue: 28, doctors: 15, medsInStock: true, lat: -33.9386, lng: 18.4636},
+  {id: 4, name: "King Edward VIII Hospital", province: "KZN", city: "Durban", queue: 52, doctors: 6, medsInStock: false, lat: -29.8587, lng: 31.0218},
+  {id: 5, name: "Steve Biko Academic Hospital", province: "Gauteng", city: "Pretoria", queue: 19, doctors: 10, medsInStock: true, lat: -25.7553, lng: 28.2336},
+  {id: 6, name: "Livingstone Hospital", province: "Eastern Cape", city: "Port Elizabeth", queue: 38, doctors: 5, medsInStock: true, lat: -33.9608, lng: 25.6022},
+  {id: 7, name: "Pelonomi Hospital", province: "Free State", city: "Bloemfontein", queue: 22, doctors: 4, medsInStock: true, lat: -29.0852, lng: 26.1596},
+  {id: 8, name: "Polokwane Hospital", province: "Limpopo", city: "Polokwane", queue: 41, doctors: 7, medsInStock: false, lat: -23.9045, lng: 29.4689},
+  {id: 9, name: "Kimberley Hospital", province: "Northern Cape", city: "Kimberley", queue: 15, doctors: 3, medsInStock: true, lat: -28.7282, lng: 24.7603},
+  {id: 10, name: "Rob Ferreira Hospital", province: "Mpumalanga", city: "Nelspruit", queue: 27, doctors: 5, medsInStock: true, lat: -25.4753, lng: 30.9694},
+  {id: 11, name: "Hillbrow Community Health Centre", province: "Gauteng", city: "Johannesburg", queue: 65, doctors: 2, medsInStock: true, lat: -26.1916, lng: 28.0436},
+  {id: 12, name: "Gugulethu CHC", province: "Western Cape", city: "Cape Town", queue: 48, doctors: 3, medsInStock: true, lat: -33.9781, lng: 18.5596},
+  {id: 13, name: "Umlazi Clinic", province: "KZN", city: "Durban", queue: 55, doctors: 2, medsInStock: false, lat: -29.9741, lng: 30.9023},
+  {id: 14, name: "Mamelodi Hospital", province: "Gauteng", city: "Pretoria", queue: 39, doctors: 6, medsInStock: true, lat: -25.7278, lng: 28.3964},
+  {id: 15, name: "Khayelitsha Hospital", province: "Western Cape", city: "Cape Town", queue: 58, doctors: 4, medsInStock: true, lat: -34.0344, lng: 18.7009},
+  {id: 16, name: "Rahima Moosa Hospital", province: "Gauteng", city: "Johannesburg", queue: 36, doctors: 5, medsInStock: true, lat: -26.1667, lng: 28.0167},
+  {id: 17, name: "Tembisa Hospital", province: "Gauteng", city: "Kempton Park", queue: 61, doctors: 7, medsInStock: true, lat: -26.0097, lng: 28.2336},
+  {id: 18, name: "Nelson Mandela Academic Hospital", province: "Eastern Cape", city: "Mthatha", queue: 33, doctors: 6, medsInStock: true, lat: -31.5896, lng: 28.7828},
+  {id: 19, name: "George Hospital", province: "Western Cape", city: "George", queue: 21, doctors: 4, medsInStock: true, lat: -33.9648, lng: 22.4607},
+  {id: 20, name: "Rustenburg Hospital", province: "North West", city: "Rustenburg", queue: 44, doctors: 5, medsInStock: false, lat: -25.6701, lng: 27.2419}
+];
+
+function App() {
+  const [view, setView] = useState('patient'); // patient, clinic, doh
+  const [clinics, setClinics] = useState(DEMO_CLINICS);
+  const [selectedClinic, setSelectedClinic] = useState(null);
+  const [bookings, setBookings] = useState([]);
+  const [provinceFilter, setProvinceFilter] = useState('All');
+
+  const filteredClinics = provinceFilter === 'All'
+   ? clinics
+    : clinics.filter(c => c.province === provinceFilter);
+
+  const bookSlot = (clinicId) => {
+    const newBooking = {
+      id: Date.now(),
+      clinicId,
+      time: '10:30 AM',
+      qr: 'QR' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+      status: 'Booked'
+    };
+    setBookings([...bookings, newBooking]);
+    alert('Slot booked! Show this QR at the clinic: ' + newBooking.qr);
+  };
+
+  const updateStock = (clinicId, inStock) => {
+    setClinics(clinics.map(c => c.id === clinicId? {...c, medsInStock: inStock} : c));
+  };
+
+  const markSeen = (clinicId) => {
+    setClinics(clinics.map(c => c.id === clinicId? {...c, queue: Math.max(0, c.queue - 1)} : c));
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-blue-700 text-white p-4 shadow-lg">
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+          <h1 className="text-2xl font-bold">CliniqueConnect</h1>
+          <nav className="flex gap-4">
+            <button onClick={() => setView('patient')} className={`px-4 py-2 rounded ${view==='patient'?'bg-blue-900':''}`}>Patient</button>
+            <button onClick={() => setView('clinic')} className={`px-4 py-2 rounded ${view==='clinic'?'bg-blue-900':''}`}>Clinic</button>
+            <button onClick={() => setView('doh')} className={`px-4 py-2 rounded ${view==='doh'?'bg-blue-900':''}`}>DOH Dashboard</button>
+          </nav>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto p-4">
+
+        {view === 'patient' && (
+          <div>
+            <div className="bg-white p-6 rounded-lg shadow mb-6">
+              <h2 className="text-xl font-bold mb-4">Find a Clinic Near You</h2>
+              <select
+                value={provinceFilter}
+                onChange={(e) => setProvinceFilter(e.target.value)}
+                className="w-full p-3 border rounded mb-4"
+              >
+                <option>All</option>
+                <option>Gauteng</option>
+                <option>Western Cape</option>
+                <option>KZN</option>
+                <option>Eastern Cape</option>
+                <option>Free State</option>
+                <option>Limpopo</option>
+                <option>Mpumalanga</option>
+                <option>North West</option>
+                <option>Northern Cape</option>
+              </select>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                {filteredClinics.map(clinic => (
+                  <div key={clinic.id} className="border p-4 rounded-lg hover:shadow-lg transition">
+                    <h3 className="font-bold">{clinic.name}</h3>
+                    <p className="text-sm text-gray-600">{clinic.city}, {clinic.province}</p>
+                    <div className="mt-2 space-y-1">
+                      <p className="text-sm">⏱️ Queue: {clinic.queue} people</p>
+                      <p className="text-sm">👨‍⚕️ Doctors on duty: {clinic.doctors}</p>
+                      <p className={`text-sm font-semibold ${clinic.medsInStock?'text-green-600':'text-red-600'}`}>
+                        💊 Meds in stock: {clinic.medsInStock? 'Yes' : 'No'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => bookSlot(clinic.id)}
+                      disabled={!clinic.medsInStock}
+                      className="mt-3 w-full bg-blue-600 text-white py-2 rounded disabled:bg-gray-400"
+                    >
+                      Book 10:30 AM Slot
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {bookings.length > 0 && (
+              <div className="bg-white p-6 rounded-lg shadow">
+                <h3 className="font-bold mb-4">My Bookings</h3>
+                {bookings.map(b => {
+                  const clinic = clinics.find(c => c.id === b.clinicId);
+                  return (
+                    <div key={b.id} className="border-l-4 border-green-500 pl-4 py-2 mb-2">
+                      <p className="font-semibold">{clinic.name}</p>
+                      <p className="text-sm">Time: {b.time} | QR: {b.qr}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {view === 'clinic' && (
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h2 className="text-xl font-bold mb-4">Clinic Dashboard</h2>
+            <p className="text-sm text-gray-600 mb-4">Select a clinic to manage</p>
+            <select
+              onChange={(e) => setSelectedClinic(clinics.find(c => c.id == e.target.value))}
+              className="w-full p-3 border rounded mb-4"
+            >
+              <option>Select Clinic</option>
+              {clinics.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+
+            {selectedClinic && (
+              <div>
+                <div className="grid md:grid-cols-3 gap-4 mb-4">
+                  <div className="bg-blue-50 p-4 rounded">
+                    <p className="text-sm text-gray-600">Queue</p>
+                    <p className="text-2xl font-bold">{selectedClinic.queue}</p>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded">
+                    <p className="text-sm text-gray-600">Doctors</p>
+                    <p className="text-2xl font-bold">{selectedClinic.doctors}</p>
+                  </div>
+                  <div className={`p-4 rounded ${selectedClinic.medsInStock?'bg-green-50':'bg-red-50'}`}>
+                    <p className="text-sm text-gray-600">Meds Stock</p>
+                    <p className="text-2xl font-bold">{selectedClinic.medsInStock?'OK':'LOW'}</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => markSeen(selectedClinic.id)}
+                    className="bg-green-600 text-white px-4 py-2 rounded"
+                  >
+                    Mark Patient Seen
+                  </button>
+                  <button
+                    onClick={() => updateStock(selectedClinic.id,!selectedClinic.medsInStock)}
+                    className="bg-orange-600 text-white px-4 py-2 rounded"
+                  >
+                    Toggle Meds Stock
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {view === 'doh' && (
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h2 className="text-xl font-bold mb-4">DOH National Dashboard</h2>
+            <div className="grid md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-blue-50 p-4 rounded">
+                <p className="text-sm text-gray-600">Total Clinics</p>
+                <p className="text-2xl font-bold">{clinics.length}</p>
+              </div>
+              <div className="bg-red-50 p-4 rounded">
+                <p className="text-sm text-gray-600">Stockouts</p>
+                <p className="text-2xl font-bold">{clinics.filter(c=>!c.medsInStock).length}</p>
+              </div>
+              <div className="bg-orange-50 p-4 rounded">
+                <p className="text-sm text-gray-600">Avg Queue</p>
+                <p className="text-2xl font-bold">{Math.round(clinics.reduce((a,b)=>a+b.queue,0)/clinics.length)}</p>
+              </div>
+              <div className="bg-green-50 p-4 rounded">
+                <p className="text-sm text-gray-600">Bookings Today</p>
+                <p className="text-2xl font-bold">{bookings.length}</p>
+              </div>
+            </div>
+
+            <h3 className="font-bold mb-2">Stock Alerts</h3>
+            <table className="w-full text-sm">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="text-left p-2">Clinic</th>
+                  <th className="text-left p-2">Province</th>
+                  <th className="text-left p-2">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {clinics.filter(c=>!c.medsInStock).map(c => (
+                  <tr key={c.id} className="border-t">
+                    <td className="p-2">{c.name}</td>
+                    <td className="p-2">{c.province}</td>
+                    <td className="p-2 text-red-600 font-semibold">Meds Out of Stock</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </main>
+
+      <footer className="text-center p-4 text-gray-500 text-sm mt-8">
+        CliniqueConnect Prototype | Demo Data | POPIA Compliant Design
+      </footer>
+    </div>
+  );
+}
+
+ReactDOM.render(<App />, document.getElementById('root'));
+</script>
+</body>
+  </html>
